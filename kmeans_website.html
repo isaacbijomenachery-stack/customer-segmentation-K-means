@@ -1,0 +1,960 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>K-Means Customer Segmentation</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&display=swap');
+
+  :root {
+    --bg: #0a0a0f;
+    --surface: #111118;
+    --card: #16161f;
+    --border: #2a2a3a;
+    --accent1: #6c63ff;
+    --accent2: #ff6584;
+    --accent3: #43e97b;
+    --accent4: #f7971e;
+    --text: #e8e8f0;
+    --muted: #8888aa;
+    --cluster1: #6c63ff;
+    --cluster2: #ff6584;
+    --cluster3: #43e97b;
+    --cluster4: #f7971e;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Syne', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Animated grid background */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(108,99,255,0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(108,99,255,0.04) 1px, transparent 1px);
+    background-size: 48px 48px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .noise {
+    position: fixed;
+    inset: 0;
+    opacity: 0.03;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  nav {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    backdrop-filter: blur(20px);
+    background: rgba(10,10,15,0.85);
+    border-bottom: 1px solid var(--border);
+    padding: 0 5%;
+    height: 64px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .logo {
+    font-size: 1.1rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    background: linear-gradient(135deg, var(--accent1), var(--accent2));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  nav ul { list-style: none; display: flex; gap: 2rem; }
+  nav ul a { color: var(--muted); text-decoration: none; font-size: 0.85rem; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; transition: color 0.2s; }
+  nav ul a:hover { color: var(--text); }
+
+  /* Hero */
+  .hero {
+    position: relative;
+    z-index: 1;
+    padding: 100px 5% 80px;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+
+  .hero-tag {
+    display: inline-block;
+    font-family: 'DM Mono', monospace;
+    font-size: 0.75rem;
+    color: var(--accent1);
+    border: 1px solid rgba(108,99,255,0.4);
+    padding: 4px 12px;
+    border-radius: 2px;
+    margin-bottom: 24px;
+    letter-spacing: 0.1em;
+  }
+
+  h1 {
+    font-size: clamp(2.5rem, 6vw, 5rem);
+    font-weight: 800;
+    line-height: 1.05;
+    letter-spacing: -0.03em;
+    margin-bottom: 24px;
+  }
+
+  h1 span {
+    background: linear-gradient(135deg, var(--accent1) 0%, var(--accent2) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  .hero-desc {
+    max-width: 600px;
+    color: var(--muted);
+    font-size: 1.1rem;
+    line-height: 1.7;
+    margin-bottom: 48px;
+  }
+
+  .hero-cta {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+
+  .btn {
+    padding: 14px 28px;
+    border-radius: 4px;
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 0.9rem;
+    letter-spacing: 0.02em;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-decoration: none;
+  }
+
+  .btn-primary {
+    background: var(--accent1);
+    color: #fff;
+    border: none;
+  }
+  .btn-primary:hover { background: #7d75ff; transform: translateY(-2px); box-shadow: 0 8px 24px rgba(108,99,255,0.35); }
+
+  .btn-ghost {
+    background: transparent;
+    color: var(--text);
+    border: 1px solid var(--border);
+  }
+  .btn-ghost:hover { border-color: var(--accent1); color: var(--accent1); }
+
+  /* Stats bar */
+  .stats-bar {
+    position: relative;
+    z-index: 1;
+    background: var(--card);
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    padding: 32px 5%;
+    display: flex;
+    justify-content: space-around;
+    gap: 24px;
+    flex-wrap: wrap;
+  }
+
+  .stat { text-align: center; }
+  .stat-num {
+    font-size: 2.2rem;
+    font-weight: 800;
+    letter-spacing: -0.04em;
+    background: linear-gradient(135deg, var(--accent1), var(--accent3));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .stat-label { font-size: 0.8rem; color: var(--muted); margin-top: 4px; text-transform: uppercase; letter-spacing: 0.08em; }
+
+  /* Main content */
+  .container {
+    position: relative;
+    z-index: 1;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 80px 5%;
+  }
+
+  .section-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.7rem;
+    color: var(--accent1);
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    margin-bottom: 12px;
+  }
+
+  h2 {
+    font-size: 2rem;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    margin-bottom: 16px;
+  }
+
+  .section-intro {
+    color: var(--muted);
+    max-width: 640px;
+    line-height: 1.7;
+    margin-bottom: 48px;
+  }
+
+  /* How it works steps */
+  .steps {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 1px;
+    background: var(--border);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    margin-bottom: 80px;
+  }
+
+  .step {
+    background: var(--card);
+    padding: 32px;
+    position: relative;
+    transition: background 0.2s;
+  }
+  .step:hover { background: #1c1c28; }
+
+  .step-num {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.7rem;
+    color: var(--accent1);
+    letter-spacing: 0.1em;
+    margin-bottom: 16px;
+  }
+
+  .step h3 { font-size: 1.05rem; font-weight: 700; margin-bottom: 10px; }
+  .step p { font-size: 0.88rem; color: var(--muted); line-height: 1.6; }
+
+  .step-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    background: rgba(108,99,255,0.12);
+    border: 1px solid rgba(108,99,255,0.25);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+    margin-bottom: 16px;
+  }
+
+  /* Cluster cards */
+  .clusters-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 20px;
+    margin-bottom: 80px;
+  }
+
+  .cluster-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 28px;
+    position: relative;
+    overflow: hidden;
+    transition: transform 0.2s, box-shadow 0.2s;
+  }
+
+  .cluster-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 16px 40px rgba(0,0,0,0.4);
+  }
+
+  .cluster-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+  }
+  .cluster-card:nth-child(1)::before { background: var(--cluster1); }
+  .cluster-card:nth-child(2)::before { background: var(--cluster2); }
+  .cluster-card:nth-child(3)::before { background: var(--cluster3); }
+  .cluster-card:nth-child(4)::before { background: var(--cluster4); }
+
+  .cluster-badge {
+    display: inline-block;
+    font-family: 'DM Mono', monospace;
+    font-size: 0.7rem;
+    padding: 3px 10px;
+    border-radius: 2px;
+    margin-bottom: 16px;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+  }
+  .cluster-card:nth-child(1) .cluster-badge { background: rgba(108,99,255,0.15); color: var(--cluster1); }
+  .cluster-card:nth-child(2) .cluster-badge { background: rgba(255,101,132,0.15); color: var(--cluster2); }
+  .cluster-card:nth-child(3) .cluster-badge { background: rgba(67,233,123,0.15); color: var(--cluster3); }
+  .cluster-card:nth-child(4) .cluster-badge { background: rgba(247,151,30,0.15); color: var(--cluster4); }
+
+  .cluster-card h3 { font-size: 1.1rem; font-weight: 700; margin-bottom: 8px; }
+  .cluster-card p { font-size: 0.85rem; color: var(--muted); line-height: 1.6; margin-bottom: 20px; }
+
+  .cluster-metrics { display: flex; flex-direction: column; gap: 8px; }
+  .metric { display: flex; justify-content: space-between; align-items: center; }
+  .metric-label { font-size: 0.78rem; color: var(--muted); }
+  .metric-bar-wrap { flex: 1; margin: 0 12px; height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; }
+  .metric-bar { height: 100%; border-radius: 2px; transition: width 1s ease; }
+  .cluster-card:nth-child(1) .metric-bar { background: var(--cluster1); }
+  .cluster-card:nth-child(2) .metric-bar { background: var(--cluster2); }
+  .cluster-card:nth-child(3) .metric-bar { background: var(--cluster3); }
+  .cluster-card:nth-child(4) .metric-bar { background: var(--cluster4); }
+  .metric-val { font-size: 0.78rem; font-family: 'DM Mono', monospace; color: var(--text); min-width: 28px; text-align: right; }
+
+  /* Interactive scatter plot */
+  .viz-section {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 40px;
+    margin-bottom: 80px;
+  }
+
+  .viz-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 32px;
+    flex-wrap: wrap;
+    gap: 16px;
+  }
+
+  .viz-legend {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.8rem;
+    color: var(--muted);
+  }
+
+  .legend-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+  }
+
+  canvas#scatter {
+    width: 100%;
+    height: 340px;
+    display: block;
+    cursor: crosshair;
+  }
+
+  /* Algo explainer */
+  .algo-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 32px;
+    margin-bottom: 80px;
+  }
+
+  @media (max-width: 700px) { .algo-grid { grid-template-columns: 1fr; } }
+
+  .code-block {
+    background: #0d0d14;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 28px;
+    font-family: 'DM Mono', monospace;
+    font-size: 0.8rem;
+    line-height: 1.8;
+    color: #aaaac4;
+    overflow-x: auto;
+  }
+
+  .code-block .kw { color: var(--accent1); }
+  .code-block .fn { color: var(--accent3); }
+  .code-block .cm { color: #555570; }
+  .code-block .str { color: var(--accent4); }
+  .code-block .num { color: var(--accent2); }
+
+  .algo-text h3 { font-size: 1.3rem; font-weight: 700; margin-bottom: 16px; }
+  .algo-text p { color: var(--muted); font-size: 0.9rem; line-height: 1.7; margin-bottom: 16px; }
+  .algo-text ul { list-style: none; display: flex; flex-direction: column; gap: 10px; }
+  .algo-text li { font-size: 0.88rem; color: var(--muted); padding-left: 20px; position: relative; line-height: 1.6; }
+  .algo-text li::before { content: '→'; position: absolute; left: 0; color: var(--accent1); font-size: 0.8rem; }
+
+  /* Use cases */
+  .use-cases {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+    margin-bottom: 80px;
+  }
+
+  .use-case {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 24px;
+    text-align: center;
+    transition: all 0.2s;
+  }
+  .use-case:hover { border-color: var(--accent1); transform: translateY(-2px); }
+  .use-case .uc-icon { font-size: 2rem; margin-bottom: 12px; }
+  .use-case h4 { font-size: 0.92rem; font-weight: 700; margin-bottom: 6px; }
+  .use-case p { font-size: 0.78rem; color: var(--muted); line-height: 1.5; }
+
+  /* Footer */
+  footer {
+    position: relative;
+    z-index: 1;
+    border-top: 1px solid var(--border);
+    padding: 32px 5%;
+    text-align: center;
+    color: var(--muted);
+    font-size: 0.8rem;
+    font-family: 'DM Mono', monospace;
+    letter-spacing: 0.05em;
+  }
+
+  /* Animations */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(24px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .hero > * { animation: fadeUp 0.6s ease both; }
+  .hero > *:nth-child(1) { animation-delay: 0.1s; }
+  .hero > *:nth-child(2) { animation-delay: 0.2s; }
+  .hero > *:nth-child(3) { animation-delay: 0.3s; }
+  .hero > *:nth-child(4) { animation-delay: 0.4s; }
+
+  /* Elbow chart */
+  .elbow-wrap {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 32px;
+    margin-bottom: 32px;
+  }
+  canvas#elbow { width: 100%; height: 200px; display: block; }
+
+  .tabs {
+    display: flex;
+    gap: 2px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 4px;
+    margin-bottom: 24px;
+    width: fit-content;
+  }
+
+  .tab {
+    padding: 8px 18px;
+    border-radius: 4px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    color: var(--muted);
+    transition: all 0.2s;
+    border: none;
+    background: none;
+    font-family: 'Syne', sans-serif;
+  }
+  .tab.active { background: var(--card); color: var(--text); }
+  .tab:hover:not(.active) { color: var(--text); }
+</style>
+</head>
+<body>
+<div class="noise"></div>
+
+<nav>
+  <div class="logo">⬡ ClusterIQ</div>
+  <ul>
+    <li><a href="#how">Algorithm</a></li>
+    <li><a href="#segments">Segments</a></li>
+    <li><a href="#visualize">Visualize</a></li>
+    <li><a href="#usecases">Use Cases</a></li>
+  </ul>
+</nav>
+
+<!-- Hero -->
+<section class="hero">
+  <div class="hero-tag">UNSUPERVISED MACHINE LEARNING</div>
+  <h1>Customer<br>Segmentation<br>with <span>K-Means</span></h1>
+  <p class="hero-desc">
+    Discover hidden patterns in your customer base. K-Means clustering groups customers by behavior, value, and demographics — enabling hyper-targeted marketing and personalized experiences.
+  </p>
+  <div class="hero-cta">
+    <a href="#visualize" class="btn btn-primary">Explore Live Demo</a>
+    <a href="#how" class="btn btn-ghost">How It Works</a>
+  </div>
+</section>
+
+<!-- Stats -->
+<div class="stats-bar">
+  <div class="stat"><div class="stat-num">4</div><div class="stat-label">Customer Segments</div></div>
+  <div class="stat"><div class="stat-num">K²</div><div class="stat-label">K-Means Algorithm</div></div>
+  <div class="stat"><div class="stat-num">RFM</div><div class="stat-label">Feature Engineering</div></div>
+  <div class="stat"><div class="stat-num">∞</div><div class="stat-label">Scalable Clusters</div></div>
+</div>
+
+<!-- How it works -->
+<div class="container" id="how">
+  <div class="section-label">// 01 — ALGORITHM</div>
+  <h2>How K-Means Works</h2>
+  <p class="section-intro">K-Means is an iterative clustering algorithm that partitions n data points into K groups based on feature similarity using Euclidean distance minimization.</p>
+
+  <div class="steps">
+    <div class="step">
+      <div class="step-num">STEP 01</div>
+      <div class="step-icon">🎯</div>
+      <h3>Initialize Centroids</h3>
+      <p>Randomly place K centroids in the feature space. K-Means++ initialization picks centroids that are spread apart, reducing convergence time.</p>
+    </div>
+    <div class="step">
+      <div class="step-num">STEP 02</div>
+      <div class="step-icon">📐</div>
+      <h3>Assign Data Points</h3>
+      <p>Each data point is assigned to the nearest centroid using Euclidean distance. This forms K clusters of customers with similar attributes.</p>
+    </div>
+    <div class="step">
+      <div class="step-num">STEP 03</div>
+      <div class="step-icon">🔄</div>
+      <h3>Recompute Centroids</h3>
+      <p>Recalculate each centroid as the mean of all points assigned to its cluster. Centroids shift toward the true center of each group.</p>
+    </div>
+    <div class="step">
+      <div class="step-num">STEP 04</div>
+      <div class="step-icon">✅</div>
+      <h3>Convergence Check</h3>
+      <p>Repeat steps 2–3 until centroids stop moving significantly or the max iterations limit is reached. The result: stable customer segments.</p>
+    </div>
+  </div>
+
+  <!-- Algorithm + Code -->
+  <div id="segments" class="algo-grid">
+    <div class="algo-text">
+      <h3>RFM Feature Engineering</h3>
+      <p>Before clustering, raw transactional data is transformed into meaningful features. RFM analysis is the industry-standard approach:</p>
+      <ul>
+        <li><strong style="color:var(--text)">Recency</strong> — Days since the customer's last purchase</li>
+        <li><strong style="color:var(--text)">Frequency</strong> — Total number of transactions in the period</li>
+        <li><strong style="color:var(--text)">Monetary</strong> — Total amount spent by the customer</li>
+        <li><strong style="color:var(--text)">StandardScaler</strong> normalizes features before clustering</li>
+        <li><strong style="color:var(--text)">Elbow Method</strong> identifies the optimal number of clusters K</li>
+        <li><strong style="color:var(--text)">Silhouette Score</strong> validates cluster quality and separation</li>
+      </ul>
+    </div>
+    <div class="code-block">
+<span class="cm"># K-Means Customer Segmentation</span>
+<span class="kw">from</span> sklearn.cluster <span class="kw">import</span> KMeans
+<span class="kw">from</span> sklearn.preprocessing <span class="kw">import</span> StandardScaler
+<span class="kw">import</span> pandas <span class="kw">as</span> pd
+
+<span class="cm"># Compute RFM features</span>
+rfm = df.<span class="fn">groupby</span>(<span class="str">'CustomerID'</span>).<span class="fn">agg</span>({
+    <span class="str">'InvoiceDate'</span>: <span class="str">'max'</span>,   <span class="cm"># Recency</span>
+    <span class="str">'InvoiceNo'</span>: <span class="str">'count'</span>,  <span class="cm"># Frequency</span>
+    <span class="str">'TotalPrice'</span>: <span class="str">'sum'</span>    <span class="cm"># Monetary</span>
+})
+
+<span class="cm"># Scale features</span>
+scaler = StandardScaler()
+X_scaled = scaler.<span class="fn">fit_transform</span>(rfm)
+
+<span class="cm"># Fit K-Means with K=4</span>
+km = KMeans(n_clusters=<span class="num">4</span>, init=<span class="str">'k-means++'</span>,
+            n_init=<span class="num">10</span>, random_state=<span class="num">42</span>)
+rfm[<span class="str">'Cluster'</span>] = km.<span class="fn">fit_predict</span>(X_scaled)
+    </div>
+  </div>
+
+  <!-- Cluster segments -->
+  <div class="section-label">// 02 — SEGMENTS</div>
+  <h2>Customer Segments</h2>
+  <p class="section-intro">K-Means with K=4 reveals four distinct behavioral archetypes with different engagement, value, and retention characteristics.</p>
+
+  <div class="clusters-grid">
+    <div class="cluster-card">
+      <div class="cluster-badge">CLUSTER 0</div>
+      <h3>🏆 Champions</h3>
+      <p>High-value loyalists who buy often and recently. They respond well to loyalty programs and early access offers.</p>
+      <div class="cluster-metrics">
+        <div class="metric">
+          <span class="metric-label">Recency</span>
+          <div class="metric-bar-wrap"><div class="metric-bar" style="width:90%"></div></div>
+          <span class="metric-val">90%</span>
+        </div>
+        <div class="metric">
+          <span class="metric-label">Frequency</span>
+          <div class="metric-bar-wrap"><div class="metric-bar" style="width:95%"></div></div>
+          <span class="metric-val">95%</span>
+        </div>
+        <div class="metric">
+          <span class="metric-label">Monetary</span>
+          <div class="metric-bar-wrap"><div class="metric-bar" style="width:88%"></div></div>
+          <span class="metric-val">88%</span>
+        </div>
+      </div>
+    </div>
+    <div class="cluster-card">
+      <div class="cluster-badge">CLUSTER 1</div>
+      <h3>⚠️ At-Risk</h3>
+      <p>Previously active customers who haven't purchased recently. Targeted win-back campaigns with special discounts are effective.</p>
+      <div class="cluster-metrics">
+        <div class="metric">
+          <span class="metric-label">Recency</span>
+          <div class="metric-bar-wrap"><div class="metric-bar" style="width:22%"></div></div>
+          <span class="metric-val">22%</span>
+        </div>
+        <div class="metric">
+          <span class="metric-label">Frequency</span>
+          <div class="metric-bar-wrap"><div class="metric-bar" style="width:55%"></div></div>
+          <span class="metric-val">55%</span>
+        </div>
+        <div class="metric">
+          <span class="metric-label">Monetary</span>
+          <div class="metric-bar-wrap"><div class="metric-bar" style="width:48%"></div></div>
+          <span class="metric-val">48%</span>
+        </div>
+      </div>
+    </div>
+    <div class="cluster-card">
+      <div class="cluster-badge">CLUSTER 2</div>
+      <h3>🌱 Potential Loyalists</h3>
+      <p>Recent buyers with moderate frequency. Nurturing with personalized recommendations can convert them into champions.</p>
+      <div class="cluster-metrics">
+        <div class="metric">
+          <span class="metric-label">Recency</span>
+          <div class="metric-bar-wrap"><div class="metric-bar" style="width:72%"></div></div>
+          <span class="metric-val">72%</span>
+        </div>
+        <div class="metric">
+          <span class="metric-label">Frequency</span>
+          <div class="metric-bar-wrap"><div class="metric-bar" style="width:40%"></div></div>
+          <span class="metric-val">40%</span>
+        </div>
+        <div class="metric">
+          <span class="metric-label">Monetary</span>
+          <div class="metric-bar-wrap"><div class="metric-bar" style="width:35%"></div></div>
+          <span class="metric-val">35%</span>
+        </div>
+      </div>
+    </div>
+    <div class="cluster-card">
+      <div class="cluster-badge">CLUSTER 3</div>
+      <h3>💤 Hibernating</h3>
+      <p>Low recency, frequency, and spend. These customers need aggressive re-engagement or should be removed from active lists.</p>
+      <div class="cluster-metrics">
+        <div class="metric">
+          <span class="metric-label">Recency</span>
+          <div class="metric-bar-wrap"><div class="metric-bar" style="width:10%"></div></div>
+          <span class="metric-val">10%</span>
+        </div>
+        <div class="metric">
+          <span class="metric-label">Frequency</span>
+          <div class="metric-bar-wrap"><div class="metric-bar" style="width:15%"></div></div>
+          <span class="metric-val">15%</span>
+        </div>
+        <div class="metric">
+          <span class="metric-label">Monetary</span>
+          <div class="metric-bar-wrap"><div class="metric-bar" style="width:12%"></div></div>
+          <span class="metric-val">12%</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scatter visualization -->
+  <div class="viz-section" id="visualize">
+    <div class="viz-header">
+      <div>
+        <div class="section-label">// 03 — VISUALIZE</div>
+        <h2 style="margin-bottom:0">Live Cluster Plot</h2>
+      </div>
+      <div>
+        <div class="tabs">
+          <button class="tab active" onclick="setView('rfm')">RFM Space</button>
+          <button class="tab" onclick="setView('spending')">Spending</button>
+          <button class="tab" onclick="setView('elbow')">Elbow Curve</button>
+        </div>
+        <div class="viz-legend">
+          <div class="legend-item"><div class="legend-dot" style="background:var(--cluster1)"></div>Champions</div>
+          <div class="legend-item"><div class="legend-dot" style="background:var(--cluster2)"></div>At-Risk</div>
+          <div class="legend-item"><div class="legend-dot" style="background:var(--cluster3)"></div>Potential</div>
+          <div class="legend-item"><div class="legend-dot" style="background:var(--cluster4)"></div>Hibernating</div>
+        </div>
+      </div>
+    </div>
+    <canvas id="scatter"></canvas>
+  </div>
+
+  <!-- Use cases -->
+  <div id="usecases">
+    <div class="section-label">// 04 — APPLICATIONS</div>
+    <h2>Industry Use Cases</h2>
+    <p class="section-intro">K-Means customer segmentation delivers actionable insights across every customer-facing industry.</p>
+    <div class="use-cases">
+      <div class="use-case">
+        <div class="uc-icon">🛒</div>
+        <h4>E-Commerce</h4>
+        <p>Personalize product recommendations and cart abandonment emails per segment</p>
+      </div>
+      <div class="use-case">
+        <div class="uc-icon">🏦</div>
+        <h4>Banking</h4>
+        <p>Tailor financial products and credit offers based on spending patterns</p>
+      </div>
+      <div class="use-case">
+        <div class="uc-icon">📱</div>
+        <h4>SaaS / Apps</h4>
+        <p>Identify power users vs churn-risk users for targeted retention flows</p>
+      </div>
+      <div class="use-case">
+        <div class="uc-icon">🏥</div>
+        <h4>Healthcare</h4>
+        <p>Group patients by engagement and adherence for proactive outreach</p>
+      </div>
+      <div class="use-case">
+        <div class="uc-icon">✈️</div>
+        <h4>Travel</h4>
+        <p>Segment loyalty members by trip frequency and booking value</p>
+      </div>
+      <div class="use-case">
+        <div class="uc-icon">📺</div>
+        <h4>Streaming</h4>
+        <p>Cluster viewers by genre preference and watch time for content recommendations</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<footer>
+  ⬡ ClusterIQ — K-Means Customer Segmentation · Built with Python · scikit-learn · pandas · matplotlib
+</footer>
+
+<script>
+// ── Scatter Canvas ──────────────────────────────────────────────
+const canvas = document.getElementById('scatter');
+const ctx = canvas.getContext('2d');
+let currentView = 'rfm';
+
+const COLORS = ['#6c63ff','#ff6584','#43e97b','#f7971e'];
+const LABELS = ['Champions','At-Risk','Potential Loyalists','Hibernating'];
+
+function resize() {
+  const rect = canvas.parentElement.getBoundingClientRect();
+  canvas.width = rect.width - 80;
+  canvas.height = 340;
+  draw();
+}
+
+// Generate synthetic cluster data
+function genClusters(view) {
+  const pts = [];
+  const configs = view === 'rfm' ? [
+    { cx: 0.75, cy: 0.8,  spread: 0.1, n: 55 },
+    { cx: 0.25, cy: 0.45, spread: 0.1, n: 40 },
+    { cx: 0.65, cy: 0.4,  spread: 0.12, n: 50 },
+    { cx: 0.2,  cy: 0.2,  spread: 0.08, n: 35 }
+  ] : [
+    { cx: 0.8,  cy: 0.85, spread: 0.09, n: 55 },
+    { cx: 0.35, cy: 0.5,  spread: 0.1,  n: 40 },
+    { cx: 0.55, cy: 0.35, spread: 0.11, n: 50 },
+    { cx: 0.15, cy: 0.18, spread: 0.07, n: 35 }
+  ];
+  configs.forEach((c, ci) => {
+    for (let i = 0; i < c.n; i++) {
+      const angle = Math.random() * 2 * Math.PI;
+      const r = Math.random() * c.spread;
+      pts.push({ x: c.cx + r * Math.cos(angle), y: c.cy + r * Math.sin(angle), cluster: ci });
+    }
+  });
+  return pts;
+}
+
+const rfmPts = genClusters('rfm');
+const spendPts = genClusters('spending');
+
+function drawScatter(pts, xLabel, yLabel) {
+  const W = canvas.width, H = canvas.height;
+  const pad = { l: 50, r: 20, t: 20, b: 40 };
+  const pw = W - pad.l - pad.r;
+  const ph = H - pad.t - pad.b;
+
+  ctx.clearRect(0, 0, W, H);
+
+  // Grid
+  ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+  ctx.lineWidth = 1;
+  for (let i = 0; i <= 5; i++) {
+    const x = pad.l + (pw / 5) * i;
+    const y = pad.t + (ph / 5) * i;
+    ctx.beginPath(); ctx.moveTo(x, pad.t); ctx.lineTo(x, pad.t + ph); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(pad.l + pw, y); ctx.stroke();
+  }
+
+  // Axis labels
+  ctx.fillStyle = '#8888aa';
+  ctx.font = '12px DM Mono, monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText(xLabel, pad.l + pw / 2, H - 8);
+  ctx.save();
+  ctx.translate(14, pad.t + ph / 2);
+  ctx.rotate(-Math.PI / 2);
+  ctx.fillText(yLabel, 0, 0);
+  ctx.restore();
+
+  // Centroids (X marks)
+  const centroids = [[0, 0], [0, 0], [0, 0], [0, 0]];
+  const counts = [0, 0, 0, 0];
+  pts.forEach(p => { centroids[p.cluster][0] += p.x; centroids[p.cluster][1] += p.y; counts[p.cluster]++; });
+  centroids.forEach((c, i) => { c[0] /= counts[i]; c[1] /= counts[i]; });
+
+  // Points
+  pts.forEach(p => {
+    const px = pad.l + p.x * pw;
+    const py = pad.t + (1 - p.y) * ph;
+    ctx.beginPath();
+    ctx.arc(px, py, 4, 0, Math.PI * 2);
+    ctx.fillStyle = COLORS[p.cluster] + 'bb';
+    ctx.fill();
+  });
+
+  // Draw centroid crosses
+  centroids.forEach((c, i) => {
+    const px = pad.l + c[0] * pw;
+    const py = pad.t + (1 - c[1]) * ph;
+    ctx.strokeStyle = COLORS[i];
+    ctx.lineWidth = 2.5;
+    const s = 10;
+    ctx.beginPath(); ctx.moveTo(px - s, py - s); ctx.lineTo(px + s, py + s); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(px + s, py - s); ctx.lineTo(px - s, py + s); ctx.stroke();
+    ctx.fillStyle = COLORS[i];
+    ctx.font = 'bold 11px Syne, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('C' + i, px, py - 14);
+  });
+}
+
+function drawElbow() {
+  const W = canvas.width, H = canvas.height;
+  ctx.clearRect(0, 0, W, H);
+  const pad = { l: 60, r: 30, t: 20, b: 50 };
+  const pw = W - pad.l - pad.r, ph = H - pad.t - pad.b;
+
+  const ks = [1, 2, 3, 4, 5, 6, 7, 8];
+  const inertia = [14200, 9800, 7100, 4400, 4100, 3900, 3800, 3750];
+  const maxI = Math.max(...inertia), minI = Math.min(...inertia);
+
+  // Grid
+  ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+  ctx.lineWidth = 1;
+  for (let i = 0; i <= 4; i++) {
+    const y = pad.t + (ph / 4) * i;
+    ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(pad.l + pw, y); ctx.stroke();
+  }
+
+  // Area fill
+  const grad = ctx.createLinearGradient(0, pad.t, 0, pad.t + ph);
+  grad.addColorStop(0, 'rgba(108,99,255,0.25)');
+  grad.addColorStop(1, 'rgba(108,99,255,0)');
+  ctx.beginPath();
+  ctx.moveTo(pad.l, pad.t + ph);
+  ks.forEach((k, i) => {
+    const x = pad.l + (i / (ks.length - 1)) * pw;
+    const y = pad.t + (1 - (inertia[i] - minI) / (maxI - minI)) * ph;
+    ctx.lineTo(x, y);
+  });
+  ctx.lineTo(pad.l + pw, pad.t + ph);
+  ctx.closePath();
+  ctx.fillStyle = grad;
+  ctx.fill();
+
+  // Line
+  ctx.beginPath();
+  ks.forEach((k, i) => {
+    const x = pad.l + (i / (ks.length - 1)) * pw;
+    const y = pad.t + (1 - (inertia[i] - minI) / (maxI - minI)) * ph;
+    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  });
+  ctx.strokeStyle = '#6c63ff';
+  ctx.lineWidth = 2.5;
+  ctx.stroke();
+
+  // Points + highlight K=4
+  ks.forEach((k, i) => {
+    const x = pad.l + (i / (ks.length - 1)) * pw;
+    const y = pad.t + (1 - (inertia[i] - minI) / (maxI - minI)) * ph;
+    ctx.beginPath();
+    ctx.arc(x, y, k === 4 ? 8 : 5, 0, Math.PI * 2);
+    ctx.fillStyle = k === 4 ? '#6c63ff' : '#6c63ff99';
+    ctx.fill();
+    if (k === 4) {
+      ctx.strokeStyle = '#fff4';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.fillStyle = '#fff';
+      ctx.font = 'bold 11px Syne';
+      ctx.textAlign = 'center';
+      ctx.fillText('Optimal K=4', x, y - 16);
+    }
+  });
+
+  // Axes
+  ctx.fillStyle = '#8888aa';
+  ctx.font = '11px DM Mono, monospace';
+  ctx.textAlign = 'center';
+  ks.forEach((k, i) => {
+    const x = pad.l + (i / (ks.length - 1)) * pw;
+    ctx.fillText('K=' + k, x, pad.t + ph + 18);
+  });
+  ctx.fillText('Number of Clusters (K)', pad.l + pw / 2, H - 8);
+  ctx.save();
+  ctx.translate(18, pad.t + ph / 2);
+  ctx.rotate(-Math.PI / 2);
+  ctx.fillText('Inertia (WCSS)', 0, 0);
+  ctx.restore();
+}
+
+function draw() {
+  if (currentView === 'rfm') drawScatter(rfmPts, 'Frequency →', '← Recency');
+  else if (currentView === 'spending') drawScatter(spendPts, 'Frequency →', '← Monetary');
+  else drawElbow();
+}
+
+function setView(v) {
+  currentView = v;
+  document.querySelectorAll('.tab').forEach((t, i) => {
+    t.classList.toggle('active', ['rfm','spending','elbow'][i] === v);
+  });
+  draw();
+}
+
+window.addEventListener('resize', resize);
+resize();
+</script>
+</body>
+</html>
