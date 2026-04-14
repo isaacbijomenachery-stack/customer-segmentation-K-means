@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>K-Means Customer Segmentation | ClusterIQ</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="noise"></div>
+
+<nav>
+  <div class="logo">⬡ ClusterIQ</div>
+  <ul>
+    <li><a href="#how">Algorithm</a></li>
+    <li><a href="#segments">Segments</a></li>
+    <li><a href="#visualize">Visualize</a></li>
+    <li><a href="#usecases">Use Cases</a></li>
+  </ul>
+</nav>
+
+<section class="hero">
+  <div class="hero-tag">UNSUPERVISED MACHINE LEARNING</div>
+  <h1>Customer<br>Segmentation<br>with <span>K-Means</span></h1>
+  <p class="hero-desc">
+    Discover hidden patterns in your customer base. K-Means clustering groups customers by behavior, value, and demographics — enabling hyper-targeted marketing and personalized experiences.
+  </p>
+  <div class="hero-cta">
+    <a href="#visualize" class="btn btn-primary">Explore Live Demo</a>
+    <a href="#how" class="btn btn-ghost">How It Works</a>
+  </div>
+</section>
+
+<div class="stats-bar">
+  <div class="stat"><div class="stat-num">4</div><div class="stat-label">Customer Segments</div></div>
+  <div class="stat"><div class="stat-num">K²</div><div class="stat-label">K-Means Algorithm</div></div>
+  <div class="stat"><div class="stat-num">RFM</div><div class="stat-label">Feature Engineering</div></div>
+  <div class="stat"><div class="stat-num">∞</div><div class="stat-label">Scalable Clusters</div></div>
+</div>
+
+<div class="container" id="how">
+  <div class="section-label">// 01 — ALGORITHM</div>
+  <h2>How K-Means Works</h2>
+  <p class="section-intro">K-Means is an iterative clustering algorithm that partitions n data points into K groups based on feature similarity using Euclidean distance minimization.</p>
+
+  <div class="steps">
+    <div class="step">
+      <div class="step-num">STEP 01</div>
+      <div class="step-icon">🎯</div>
+      <h3>Initialize Centroids</h3>
+      <p>Randomly place K centroids in the feature space. K-Means++ initialization picks centroids that are spread apart, reducing convergence time.</p>
+    </div>
+    <div class="step">
+      <div class="step-num">STEP 02</div>
+      <div class="step-icon">📐</div>
+      <h3>Assign Data Points</h3>
+      <p>Each data point is assigned to the nearest centroid using Euclidean distance. This forms K clusters of customers with similar attributes.</p>
+    </div>
+    <div class="step">
+      <div class="step-num">STEP 03</div>
+      <div class="step-icon">🔄</div>
+      <h3>Recompute Centroids</h3>
+      <p>Recalculate each centroid as the mean of all points assigned to its cluster. Centroids shift toward the true center of each group.</p>
+    </div>
+    <div class="step">
+      <div class="step-num">STEP 04</div>
+      <div class="step-icon">✅</div>
+      <h3>Convergence Check</h3>
+      <p>Repeat steps 2–3 until centroids stop moving significantly or the max iterations limit is reached.</p>
+    </div>
+  </div>
+
+  <div id="segments" class="algo-grid">
+    <div class="algo-text">
+      <h3>RFM Feature Engineering</h3>
+      <p>Before clustering, raw transactional data is transformed into meaningful features. RFM analysis is the industry-standard approach:</p>
+      <ul>
+        <li><strong>Recency</strong> — Days since the customer's last purchase</li>
+        <li><strong>Frequency</strong> — Total number of transactions</li>
+        <li><strong>Monetary</strong> — Total amount spent by the customer</li>
+        <li><strong>StandardScaler</strong> normalizes features before clustering</li>
+        <li><strong>Elbow Method</strong> identifies the optimal K</li>
+      </ul>
+    </div>
+    <div class="code-block">
+<span class="cm"># Python K-Means Snippet</span>
+<span class="kw">from</span> sklearn.cluster <span class="kw">import</span> KMeans
+<span class="kw">from</span> sklearn.preprocessing <span class="kw">import</span> StandardScaler
+
+scaler = StandardScaler()
+X_scaled = scaler.<span class="fn">fit_transform</span>(rfm)
+
+km = KMeans(n_clusters=<span class="num">4</span>, init=<span class="str">'k-means++'</span>)
+rfm[<span class="str">'Cluster'</span>] = km.<span class="fn">fit_predict</span>(X_scaled)
+    </div>
+  </div>
+
+  <div class="section-label">// 02 — SEGMENTS</div>
+  <h2>Customer Segments</h2>
+  <div class="clusters-grid">
+    <div class="cluster-card">
+      <div class="cluster-badge">CLUSTER 0</div>
+      <h3>🏆 Champions</h3>
+      <p>High-value loyalists who buy often. They respond well to loyalty programs.</p>
+      <div class="cluster-metrics">
+        <div class="metric">
+          <span class="metric-label">Recency</span>
+          <div class="metric-bar-wrap"><div class="metric-bar" style="width:90%"></div></div>
+          <span class="metric-val">90%</span>
+        </div>
+      </div>
+    </div>
+    </div>
+
+  <div class="viz-section" id="visualize">
+    <div class="viz-header">
+      <div>
+        <div class="section-label">// 03 — VISUALIZE</div>
+        <h2 style="margin-bottom:0">Live Cluster Plot</h2>
+      </div>
+      <div>
+        <div class="tabs">
+          <button class="tab active" onclick="setView('rfm')">RFM Space</button>
+          <button class="tab" onclick="setView('spending')">Spending</button>
+          <button class="tab" onclick="setView('elbow')">Elbow Curve</button>
+        </div>
+      </div>
+    </div>
+    <canvas id="scatter"></canvas>
+  </div>
+</div>
+
+<footer>
+  ⬡ ClusterIQ — Built with Python · scikit-learn · pandas
+</footer>
+
+<script src="script.js"></script>
+</body>
+</html>-
